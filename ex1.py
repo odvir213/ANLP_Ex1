@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from transformers import TrainingArguments, HfArgumentParser, Trainer, AutoConfig, AutoTokenizer, AutoModelForSequenceClassification
+from transformers import TrainingArguments, HfArgumentParser, Trainer, AutoConfig, AutoTokenizer, \
+    AutoModelForSequenceClassification, DataCollatorWithPadding
 from evaluate import load
 from datasets import load_dataset
 import wandb
@@ -124,6 +125,7 @@ def tokenize_dataset(dataset, tokenizer, prediction=False):
             examples["sentence1"],
             examples["sentence2"],
             truncation=True,
+            padding=True if not prediction else False,
             max_length=512,
         )
 
@@ -132,7 +134,7 @@ def tokenize_dataset(dataset, tokenizer, prediction=False):
 
 
 
-def create_trainer(training_args: TrainingArguments, model, tokenized_dataset, tokenizer):
+def create_trainer(training_args: TrainingArguments, model, tokenized_dataset, tokenizer, prediction=False):
     """
     Create a Trainer instance for training and evaluating the model.
     Args:
@@ -140,6 +142,7 @@ def create_trainer(training_args: TrainingArguments, model, tokenized_dataset, t
         model: The model to train and evaluate.
         tokenized_dataset : The tokenized dataset for training and evaluation.
         tokenizer: The tokenizer to use for the model.
+        prediction: Whether to use the prediction tokenizer.
 
     Returns:
         The Trainer instance.
@@ -168,7 +171,8 @@ def create_trainer(training_args: TrainingArguments, model, tokenized_dataset, t
         train_dataset=tokenized_dataset["train"],
         eval_dataset=tokenized_dataset["validation"],
         compute_metrics=compute_metrics,
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
+        data_collator=None if prediction else DataCollatorWithPadding(tokenizer=tokenizer)
     )
 
 
@@ -238,7 +242,7 @@ def predict(training_args: TrainingArguments, custom_args: CustomArguments):
     tokenized_test_dataset = tokenize_dataset(raw_dataset, tokenizer, prediction=True)
 
     # Create a trainer for prediction
-    trainer = create_trainer(training_args, model, tokenized_test_dataset, tokenizer)
+    trainer = create_trainer(training_args, model, tokenized_test_dataset, tokenizer, prediction=True)
 
     # predict the test dataset
     full_predictions = trainer.predict(tokenized_test_dataset["test"])
