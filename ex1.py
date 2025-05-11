@@ -124,6 +124,7 @@ def tokenize_dataset(dataset, tokenizer, prediction=False):
             examples["sentence1"],
             examples["sentence2"],
             truncation=True,
+            padding=True if not prediction else False,
             max_length=512,
         )
 
